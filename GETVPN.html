@@ -1,0 +1,120 @@
+GETVPN
+
+R5
+
+conf t
+crypto isakmp policy 10
+hash sha256
+authentication pre-share
+group 14
+lifetime 180
+encryption aes 256
+exit
+do show crypto isakmp policy
+crypto isakmp key cisco123 address 0.0.0.0
+!
+! Rekeying
+crypto key gen rsa general label GETVPN mod 1024 exportable
+!
+crypto ipsec transform-set OUR_TSET esp-aes 192 esp-sha-hmac
+!
+crypto ipsec profile GDOI_PROFILE
+set transform-set OUR_TSET
+set security-association lifetime seconds 300
+! this triggers rekeying more often
+exit
+!
+crypto gdoi group OUR_GETVPN
+identity number 6783
+server local 
+address ipv4 5.5.5.5
+rekey transport unicast
+rekey lifetime seconds 600
+! KEK command above
+rekey transmit 10 number 2
+rekey authentication mypubkey rsa GETVPN
+! from rsa key above
+sa ipsec 1
+profile GDOI_PROFILE
+match address ipv4 101
+replay time window-size 5
+exit
+exit
+exit
+!
+ip access-list 101 extended 101
+permit ip 10.0.0.0 0.255.255.255 10.0.0.0 0.255.255.255
+!
+router ospf 1
+network 0.0.0.0 255.255.255.255 area 0
+end
+
+-----------------------------------------------------------------
+
+R1, R2, R3, R4
+
+conf t
+crypto isakmp policy 10
+hash sha256
+authentication pre-share
+group 14
+lifetime 180
+encryption aes 256
+exit
+do show crypto isakmp policy
+crypto isakmp key cisco123 address 0.0.0.0
+!
+crypto gdoi group OUR_GETVPN
+identity number 6783
+server address ipv4 5.5.5.5
+exit
+!
+crypto map GETVPN_MAP 10 gdoi
+set group OUR_GETVPN
+exit
+!
+interface e0/0
+crypto map GETVPN_MAP
+ip tcp adjust-mss 1360
+!
+router ospf 1
+network 0.0.0.0 255.255.255.255 area 0
+
+
+-----------------------------------------------------------------------------------------
+
+R5
+
+crypto gdoi ks rekey replace-now
+yes
+! then check R1 - R4
+show crypto gdoi
+show crypto gdoi ks policy
+show crypto gdoi ks acl
+or 
+show access-list
+show crypto gdoi ks rekey
+show crypto gdoi ks member
+
+-------------------------------------------------------------------------------------------
+
+R1 - R4
+
+show crypto isakmp sa
+show crypto isakmp sa detail
+show crypto session
+show crypto gdoi
+show crypto gdoi gm rekey
+show crypto engine connection active
+show crypto ipsec sa
+
+------------------------------------------
+
+R1
+
+ping 10.2.2.2 source 10.1.1.1 repeat 123
+show crypto engine connections active
+repeat command in a few seconds
+repeat command again in a few seconds
+
+
