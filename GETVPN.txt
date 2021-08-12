@@ -1,7 +1,7 @@
 GETVPN
 
 R5
-
+en
 conf t
 crypto isakmp policy 10
 hash sha256
